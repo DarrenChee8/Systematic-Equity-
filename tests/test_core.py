@@ -79,3 +79,20 @@ def test_membership_from_spans():
     m = membership_from_spans(spans, me)
     assert m["A"].all()
     assert m["B"].tolist() == [True, False, False, True, True]
+
+
+def test_neutral_returns_remove_market_and_sector():
+    from syseq.evaluation.ic import neutral_returns
+    rng = np.random.default_rng(3)
+    idx = pd.date_range("2020-01-31", periods=24, freq="ME")
+    cols = [f"S{i}" for i in range(40)]
+    beta = pd.DataFrame(np.tile(np.linspace(0.5, 1.5, 40), (24, 1)), idx, cols)
+    mkt = pd.Series(rng.normal(0.01, 0.05, 24), idx)
+    sect = pd.Series(["A"] * 20 + ["B"] * 20, index=cols)
+    bump = pd.Series([0.02] * 20 + [-0.02] * 20, index=cols)
+    noise = pd.DataFrame(rng.normal(0, 0.001, (24, 40)), idx, cols)
+    fwd = beta.mul(mkt, axis=0) + bump + noise
+    mask = pd.DataFrame(True, idx, cols)
+    res = neutral_returns(fwd, beta, sect, mask)
+    assert abs(res.corrwith(beta, axis=1).mean()) < 0.5 and res.abs().max().max() < 0.02
+    assert np.allclose(res[cols[:20]].mean(axis=1), 0)

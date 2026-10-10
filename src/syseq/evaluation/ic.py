@@ -33,3 +33,20 @@ def ic_decay(signal: pd.DataFrame, monthly: pd.DataFrame, horizons=range(1, 13))
     """Mean IC against the single month h months ahead: shows how fast the signal fades."""
     one = forward_returns(monthly, 1)
     return pd.Series({h: rank_ic(signal, one.shift(-(h - 1))).mean() for h in horizons}, name="ic")
+
+
+def neutral_returns(fwd: pd.DataFrame, beta: pd.DataFrame, sectors: pd.Series,
+                    mask: pd.DataFrame) -> pd.DataFrame:
+    """Forward returns with market and sector effects removed.
+
+    Step 1: subtract beta x market return (market = equal-weighted universe), using the
+    beta known at the start of the month. Step 2: subtract the sector average.
+    What is left is the stock-specific return a stock-selection signal should predict.
+    """
+    f = fwd.where(mask)
+    resid = f - beta.mul(f.mean(axis=1), axis=0)
+    groups = sectors.reindex(resid.columns).fillna("Unknown")
+    out = resid.copy()
+    for _, cols in groups.groupby(groups).groups.items():
+        out[cols] = resid[cols].sub(resid[cols].mean(axis=1), axis=0)
+    return out
