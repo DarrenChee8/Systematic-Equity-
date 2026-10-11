@@ -139,3 +139,33 @@ def test_bad_dates_are_ignored():
                 ("A", "Assets", None, "2029-12-31", 5.0, "2020-03-20", "10-Q"),   # impossible period end
                 ("A", "Assets", None, "2020-03-31", 110.0, "2020-05-05", "10-Q")])
     assert asof_panel(f, ["Assets"], ME)["A"]["2020-05-31"] == 110
+
+
+def test_clean_share_counts_drops_unit_errors_but_keeps_real_changes():
+    from syseq.data.edgar import clean_share_counts
+    ends = pd.date_range("2015-03-31", periods=16, freq="QE")
+    vals = [100.0 + i for i in range(16)]
+    vals[7] = 100_000_000.0                                  # a count a million times too large
+    vals[11] = 0.11                                          # a count filed in thousands
+    rows = [("A", "s", None, e, v, e + pd.Timedelta(days=30), "10-Q") for e, v in zip(ends, vals)]
+    rows += [("B", "s", None, "2019-12-31", 50.0, "2020-02-01", "10-K"),
+             ("B", "s", None, "2020-03-31", 50.0, "2020-05-01", "10-Q"),
+             ("B", "s", None, "2020-06-30", 95.0, "2020-08-01", "10-Q"),    # a merger nearly doubles it: real
+             ("B", "s", None, "2020-09-30", 96.0, "2020-11-01", "10-Q")]
+    out = clean_share_counts(_facts(rows))
+    a = out[out["ticker"] == "A"]["val"]
+    assert len(a) == 14 and a.max() < 200 and a.min() > 50
+    assert len(out[out["ticker"] == "B"]) == 4
+
+
+def test_market_cap_repairs_units_and_share_classes():
+    from syseq.data.edgar import market_cap_panel
+    idx = pd.date_range("2020-01-31", periods=2, freq="ME")
+    shares = pd.DataFrame({"OK": [1e9, 1e9], "MILLIONS": [700.0, 700.0], "THOUSANDS": [5e5, 5e5],
+                           "CLS_A": [3e9, 3e9], "CLS_B": [3e9, 3e9], "NONE": [np.nan, np.nan]}, index=idx)
+    close = pd.DataFrame(100.0, index=idx, columns=shares.columns)
+    cap = market_cap_panel(shares, close).iloc[0]
+    assert cap["OK"] == 1e11
+    assert cap["MILLIONS"] == 7e10 and cap["THOUSANDS"] == 5e10      # scaled up to plausible values
+    assert cap["CLS_A"] == cap["CLS_B"] == 1.5e11                    # one company, not counted twice
+    assert np.isnan(cap["NONE"])

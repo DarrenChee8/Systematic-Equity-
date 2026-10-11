@@ -140,6 +140,47 @@ def split_adjust(facts: pd.DataFrame, splits: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+def clean_share_counts(share_facts: pd.DataFrame, years: float = 2.0, tolerance: float = 3.0) -> pd.DataFrame:
+    """Drop share counts that are wildly out of line with the same company's other filings.
+
+    XBRL share data contains unit errors (for example a count filed in thousands, or a
+    mistyped value a million times too large). After split adjustment a company's share count
+    should move slowly, so any record more than `tolerance` times above or below the median
+    of that company's records filed within `years` either side is treated as an error.
+    Apply after split_adjust.
+    """
+    f = share_facts[share_facts["val"] > 0].copy()
+    span = np.timedelta64(int(years * 365), "D")
+    keep = np.ones(len(f), dtype=bool)
+    filed, val = f["filed"].values, f["val"].values
+    for _, idx in f.groupby("ticker").indices.items():
+        t, v = filed[idx], val[idx]
+        near = np.abs(t[:, None] - t[None, :]) <= span
+        med = np.array([np.median(v[row]) for row in near])
+        ratio = v / med
+        keep[idx] = (ratio >= 1 / tolerance) & (ratio <= tolerance)
+    return f[keep]
+
+
+def market_cap_panel(shares: pd.DataFrame, close: pd.DataFrame,
+                     floor: float = 3e8, ceiling: float = 2e13) -> pd.DataFrame:
+    """Market value = shares x price, with two repairs for known problems in XBRL share data.
+
+    1. Units. Some companies file share counts in thousands or millions throughout. An index
+       member cannot be worth under $300m (or over $20tn), so such values are scaled by 1,000
+       until they are plausible.
+    2. Share classes. Two tickers of one company (for example GOOG and GOOGL) both carry the
+       whole company's share count. Tickers with identical counts on a date split the value
+       equally, so the company is not counted twice.
+    """
+    cap = shares * close
+    for _ in range(2):
+        cap = cap.where(~(cap < floor), cap * 1000)
+        cap = cap.where(~(cap > ceiling), cap / 1000)
+    dup = shares.apply(lambda row: row.map(row.value_counts()), axis=1)
+    return cap / dup.where(dup > 1, 1.0)
+
+
 def asof_panel(facts: pd.DataFrame, tags: list[str], month_ends: pd.DatetimeIndex,
                duration: str = "instant", max_age_days: int = 550, lag_days: int = 1) -> pd.DataFrame:
     """Latest value known at each month-end. Index: month_ends, columns: tickers.

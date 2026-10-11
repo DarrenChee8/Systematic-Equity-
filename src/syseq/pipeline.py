@@ -8,7 +8,7 @@ from types import SimpleNamespace
 import pandas as pd
 import yaml
 
-from syseq.data.edgar import (TAGS, asof_panel, download_fundamentals, quarterly_facts,
+from syseq.data.edgar import (TAGS, asof_panel, clean_share_counts, download_fundamentals, market_cap_panel, quarterly_facts,
                               split_adjust, surprise_facts, ttm_facts)
 from syseq.data.free import FreeData
 from syseq.evaluation.ic import forward_returns, neutral_returns
@@ -34,6 +34,7 @@ def build(config_path: str = "config/base.yaml", data_dir: str = "data", verbose
     # ---- data ---------------------------------------------------------------
     members = src.membership(start, cfg["end"])
     daily = src.prices(members.columns.tolist(), "2008-06-01", cfg["end"])
+    daily = daily.where(daily > 0)        # Yahoo's adjusted prices are occasionally zero or negative
     monthly = monthly_prices(daily)
     in_window = members.loc[start:].any()
     universe = [t for t in monthly.columns if in_window.get(t, False)]
@@ -54,9 +55,9 @@ def build(config_path: str = "config/base.yaml", data_dir: str = "data", verbose
     net_income, cfo, revenue, gross_profit = ttm("net_income"), ttm("cfo"), ttm("revenue"), ttm("gross_profit")
     equity = asof_panel(facts, TAGS["equity"], dates).reindex(columns=cols)
     assets = asof_panel(facts, TAGS["assets"], dates).reindex(columns=cols)
-    share_facts = split_adjust(facts[facts["tag"].isin(TAGS["shares"])], splits)
+    share_facts = clean_share_counts(split_adjust(facts[facts["tag"].isin(TAGS["shares"])], splits))
     shares = asof_panel(share_facts, TAGS["shares"], dates, "any", max_age_days=400).reindex(columns=cols)
-    market_cap = shares * close.resample("ME").last().reindex(index=dates, columns=cols)
+    market_cap = market_cap_panel(shares, close.resample("ME").last().reindex(index=dates, columns=cols))
 
     # ---- characteristics -> sector-neutral signals --------------------------
     raw = {}

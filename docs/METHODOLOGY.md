@@ -80,7 +80,54 @@ re-estimated monthly. The first 36 months use equal weights.
 No investor could have had them. The gap between hindsight and walk-forward results measures
 how much a backtest flatters a model when its parameters are chosen with knowledge of the outcome.
 
-## 6. Known limitations
+## 6. Risk model
+
+**What.** An estimate of how volatile each stock is and how stocks move together.
+
+**Why.** The optimiser needs to know whether two attractive stocks are two bets or one bet
+made twice. Two banks that rise and fall together add little diversification.
+
+**How.** With 500 stocks there are about 125,000 pairwise correlations, far too many to
+estimate from two years of data. A factor model assumes stocks co-move only through a small
+number of common factors plus a part unique to each stock:
+
+    covariance = exposures x exposures' + stock-specific variance
+
+The 15 factors are the principal components of two years of daily returns: the first is
+close to "the market", later ones resemble sector and style effects. Commercial models
+(Barra, Axioma) use named factors instead; the principle is the same.
+
+## 7. Portfolio construction
+
+**Benchmark.** Capitalisation weights (shares x price) over the investable index members,
+approximating the S&P 500's own weighting.
+
+**Active weight.** Portfolio weight minus benchmark weight. It is the bet: holding Apple at
+7% when the index holds 7% is no bet at all.
+
+**The optimisation.** Choose weights to maximise the portfolio's combined score, subject to:
+
+| Limit | Value | Purpose |
+|---|---|---|
+| Fully invested, no shorts | | A long-only fund |
+| Stock active weight | +/-2% | No single stock dominates |
+| Sector active weight | +/-6% | Returns come from stock selection, not sector bets |
+| Predicted tracking error | 2.5% a year | Caps the total size of the bets |
+| Active beta | +/-0.03 | Not a disguised bet on the market's direction |
+| One-way turnover | 10% a month | Keeps trading costs bounded |
+
+**Tracking error** is the volatility of portfolio return minus benchmark return. At 2.5%, the
+portfolio should finish a typical year within about 2.5% of the index, either way.
+
+**Reading the output.** *Holdings* is the number of stocks owned. *Active share* is half the
+sum of absolute active weights: 0% is the index itself, 100% shares nothing with it.
+*Turnover* is the fraction of the portfolio sold and replaced at a rebalance.
+
+**Why so few holdings.** A long-only portfolio can underweight a stock only down to zero. Most
+index members weigh under 0.2%, so underweighting them frees little. The optimiser therefore
+holds a concentrated set of overweights and drops most small names entirely.
+
+## 8. Known limitations
 
 - **Survivorship.** Free prices and filings omit most companies that were delisted. About 4%
   of index-member months are missing, more in the early years.
@@ -88,5 +135,10 @@ how much a backtest flatters a model when its parameters are chosen with knowled
   today's classification applied to the past; former members without one are grouped as "Unknown".
 - **Beta estimates.** Neutral returns depend on an estimated beta; estimation error tends to
   flatter low-beta stocks in rising markets. Betas are shrunk toward 1 to reduce this.
+- **Share counts.** SEC share data contains unit errors and double-counts two-class companies.
+  These are repaired by rule (median filter, rescaling by 1,000, splitting identical counts), which
+  is a heuristic, not a verified correction.
+- **Risk model.** A statistical model has no named factors and ignores changes in a company's
+  business. Its tracking-error forecast is checked against the realised figure in milestone 5.
 - **Multiple testing.** Many signals and schemes are tried. One of twenty crossing a t-stat of
   2 by chance is expected.

@@ -14,7 +14,7 @@ See [docs/METHODOLOGY.md](docs/METHODOLOGY.md) for what each stage does and how 
 | 2 | Value, quality, low-risk signals from SEC EDGAR fundamentals; sector-neutral scores; signal correlations | done |
 | 2b | Trailing-twelve-month fundamentals, sales yield, gross profitability, earnings and revenue surprise | done |
 | 3 | Signal combination: equal weights against walk-forward and hindsight weights | done |
-| 4 | Risk model and constrained optimiser | |
+| 4 | Factor risk model and constrained optimiser; monthly holdings | done |
 | 5 | Backtest with costs and attribution | |
 | 6 | IBKR paper trading | |
 
@@ -29,6 +29,7 @@ python scripts/run_milestone1.py
 python scripts/run_milestone2.py
 python scripts/run_milestone2b.py
 python scripts/run_milestone3.py
+python scripts/run_milestone4.py
 ```
 
 The first run downloads about 18 years of daily prices and caches them in `data/`.
@@ -56,11 +57,11 @@ Returns are market- and sector-neutral (beta times market return removed, then s
 
 | Theme | Mean IC | t-stat | Top minus bottom, per year |
 |---|---|---|---|
-| Value | -0.006 | -0.59 | -0.9% |
-| Quality | 0.002 | 0.24 | 0.8% |
+| Value | -0.005 | -0.45 | -1.2% |
+| Quality | 0.002 | 0.21 | 0.7% |
 | Low risk | 0.016 | 1.19 | 0.3% |
-| Momentum | 0.002 | 0.13 | -0.1% |
-| Equal-weight combination | 0.009 | 0.86 | -0.2% |
+| Momentum | 0.001 | 0.13 | -0.1% |
+| Equal-weight combination | 0.008 | 0.83 | -0.1% |
 
 No theme has a statistically detectable edge. On raw returns, low risk loses heavily
 (a bet against a rising market); removing market exposure turns its IC from -0.014 to
@@ -76,18 +77,40 @@ earnings-surprise theme; results are in `reports/m2b_signal_summary.csv`.
 
 | Weighting | Mean IC | t-stat |
 |---|---|---|
-| Equal | 0.009 | 0.79 |
+| Equal | 0.010 | 0.85 |
 | Past IC | 0.010 | 0.63 |
-| Past IC consistency | 0.008 | 0.58 |
+| Past IC consistency | 0.008 | 0.59 |
 | Mean-variance, all history | 0.006 | 0.48 |
-| Mean-variance, last 5 years | 0.002 | 0.18 |
-| Hindsight (full-sample fit, not achievable) | 0.012 | 1.05 |
+| Mean-variance, last 5 years | 0.002 | 0.21 |
+| Hindsight (full-sample fit, not achievable) | 0.012 | 1.07 |
 
 Data-driven weights, estimated from past data only, do not beat equal weights, and the more a
 scheme adapts (shorter window, more parameters) the worse it does. Weights fitted with
 hindsight look best. With inputs this weak, estimated weights mostly fit noise.
 
 ![Combination diagnostics](reports/m3_combination.png)
+
+**Milestone 4: from scores to holdings, 189 monthly rebalances, 2011-2026.**
+Each month a 15-factor statistical risk model is estimated from two years of daily returns,
+and the optimiser picks the highest-scoring portfolio within the limits below.
+
+| Characteristic | Average | Range | Limit |
+|---|---|---|---|
+| Holdings | 68 | 48 to 97 | |
+| Benchmark names | 401 | 306 to 492 | |
+| Active share | 70% | 51% to 82% | |
+| Predicted tracking error | 2.50% | 2.38% to 2.50% | 2.5% |
+| Largest stock active weight | 2.0% | | 2% |
+| Largest sector active weight | 5.7% | 3.0% to 6.0% | 6% |
+| Active beta | -0.015 | -0.030 to 0.026 | +/-0.03 |
+| One-way turnover per month | 10.1% | 10.0% to 15.7% | 10%, plus forced sales |
+
+Every rebalance solved within its limits. The risk and trading limits bind in almost every
+month: the optimiser uses all the risk and trading it is allowed. The portfolio is far more
+concentrated than the benchmark, because a long-only portfolio can underweight a small stock
+only by its small benchmark weight, so most of the risk budget goes on overweights.
+
+![Portfolio construction](reports/m4_portfolio.png)
 
 ## Known biases in the free data
 
@@ -100,6 +123,12 @@ hindsight look best. With inputs this weak, estimated weights mostly fit noise.
   number loses its history unless the old number is listed in `EXTRA_CIKS`.
 - **Sectors**: today's GICS sectors from Wikipedia are applied to the whole history;
   stocks that have left the index are grouped as "Unknown".
+
+- **Share counts**: XBRL share data has unit errors and double-counts companies with two
+  share classes. Counts far from a company's own median are dropped, implausible market
+  values are rescaled by 1,000, and identical counts across tickers are split.
+- **Benchmark**: capitalisation weights over index members that have a price, a share count
+  and enough return history, which is about 60% of the index in 2011 and nearly all of it by 2026.
 
 These will be measured by rerunning on point-in-time data (Sharadar).
 

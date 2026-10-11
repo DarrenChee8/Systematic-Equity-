@@ -8,3 +8,12 @@ signals:
     skip_months: 1
 evaluation:
   quantiles: 5
+portfolio:
+  start: "2011-01-31"        # first rebalance: fundamentals need a year of filings behind them
+  tracking_error: 0.025      # predicted, per year (AQR targets 2-3%)
+  max_stock_active: 0.02     # each stock within +/-2% of its benchmark weight
+  max_sector_active: 0.06    # each sector within +/-6%
+  max_beta_active: 0.03      # portfolio beta within 0.03 of the benchmark's
+  max_turnover: 0.10         # one-way, per monthly rebalance (about 120% a year)
+  risk_window_days: 504      # two years of daily returns
+  risk_factors: 15

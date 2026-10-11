@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import yaml
 
-from syseq.data.edgar import TAGS, asof_panel, download_fundamentals, split_adjust
+from syseq.data.edgar import TAGS, asof_panel, clean_share_counts, download_fundamentals, market_cap_panel, split_adjust
 from syseq.data.free import FreeData
 from syseq.evaluation.correlation import series_correlation, signal_correlation
 from syseq.evaluation.ic import forward_returns, ic_summary, neutral_returns, rank_ic
@@ -28,6 +28,7 @@ src = FreeData("data")
 # ---- data -------------------------------------------------------------------
 members = src.membership(START, cfg["end"])
 daily = src.prices(members.columns.tolist(), "2008-06-01", cfg["end"])   # total-return prices
+daily = daily.where(daily > 0)        # Yahoo's adjusted prices are occasionally zero or negative
 monthly = monthly_prices(daily)
 in_window = members.loc[START:].any()
 universe = [t for t in monthly.columns if in_window.get(t, False)]
@@ -45,9 +46,9 @@ def panel(item, duration):
 
 net_income, cfo = panel("net_income", "annual"), panel("cfo", "annual")
 equity, assets = panel("equity", "instant"), panel("assets", "instant")
-share_facts = split_adjust(facts[facts["tag"].isin(TAGS["shares"])], splits)
+share_facts = clean_share_counts(split_adjust(facts[facts["tag"].isin(TAGS["shares"])], splits))
 shares = asof_panel(share_facts, TAGS["shares"], dates, "any", max_age_days=400).reindex(columns=monthly.columns)
-market_cap = shares * close.resample("ME").last().reindex(index=dates, columns=monthly.columns)
+market_cap = market_cap_panel(shares, close.resample("ME").last().reindex(index=dates, columns=monthly.columns))
 
 # ---- characteristics -> sector-neutral signals ------------------------------
 raw = {}

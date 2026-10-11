@@ -17,6 +17,7 @@ dependencies = [
     "yfinance>=0.2.40",
     "lxml>=5",
     "requests>=2.31",
+    "cvxpy>=1.4",
 ]
 
 [project.optional-dependencies]
