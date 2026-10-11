@@ -123,6 +123,14 @@ portfolio should finish a typical year within about 2.5% of the index, either wa
 sum of absolute active weights: 0% is the index itself, 100% shares nothing with it.
 *Turnover* is the fraction of the portfolio sold and replaced at a rebalance.
 
+**Calibration.** An optimiser searches for the portfolio the risk model considers safest for a
+given score, so it tends to find the places where the model's risk estimate is too low.
+Realised risk is then higher than predicted. To correct this, each month's realised active
+return is divided by what the model predicted. The standard deviation of those ratios over
+the past 36 months (the *bias statistic*; 1.00 for a perfect model) scales the forecast, and
+the tracking-error budget is tightened to match. Only past months are used, no correction
+is applied until 24 months of history exist, and the scale is capped between 0.7 and 2.5.
+
 **Why so few holdings.** A long-only portfolio can underweight a stock only down to zero. Most
 index members weigh under 0.2%, so underweighting them frees little. The optimiser therefore
 holds a concentrated set of overweights and drops most small names entirely.
@@ -168,7 +176,8 @@ returns. The pieces add up exactly to the active return.
   These are repaired by rule (median filter, rescaling by 1,000, splitting identical counts), which
   is a heuristic, not a verified correction.
 - **Risk model.** A statistical model has no named factors and ignores changes in a company's
-  business. Realised tracking error was 3.7% against 2.5% predicted.
+  business. Uncalibrated, realised tracking error was 3.7% against 2.5% predicted; calibrated,
+  2.85%. A gap remains, and industry-level moves within a sector are not explicitly limited.
 - **Costs.** A flat rate ignores market impact and differences in liquidity between stocks.
 - **Benchmark.** Built from market values, not the official index weights, and missing index
   members without share data in the early years.

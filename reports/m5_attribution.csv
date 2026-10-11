@@ -1,11 +1,11 @@
 ,contribution_per_year
-VALUE,-0.000405
-QUALITY,0.004828
-LOW_RISK,-0.003451
-MOMENTUM,0.009029
-SURPRISE,-0.001814
-beta,-0.000326
-sectors,-0.003892
-stock_specific,-0.001077
-"TOTAL (gross active, arithmetic)",0.002891
-costs (5bp),-0.001238
+VALUE,-0.000207
+QUALITY,0.003845
+LOW_RISK,-0.002988
+MOMENTUM,0.007595
+SURPRISE,-0.000478
+beta,0.000285
+sectors,-0.00393
+stock_specific,0.002916
+"TOTAL (gross active, arithmetic)",0.007038
+costs (5bp),-0.001237

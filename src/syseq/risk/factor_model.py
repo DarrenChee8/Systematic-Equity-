@@ -37,22 +37,36 @@ class RiskModel:
 
 
 def estimate(daily_returns: pd.DataFrame, n_factors: int = 15, min_coverage: float = 0.8,
-             periods_per_year: int = 252) -> RiskModel:
+             periods_per_year: int = 252, halflife: float | None = None) -> RiskModel:
     """Fit on a window of daily returns (rows: days, columns: tickers).
 
     Stocks with too little history in the window are left out of the model.
+    halflife (in days) weights recent days more heavily: a day `halflife` days ago counts
+    half as much as today. None weights every day equally.
     """
     daily_returns = daily_returns.replace([np.inf, -np.inf], np.nan).clip(-0.5, 0.5)   # tame data glitches
     r = daily_returns.loc[:, daily_returns.notna().mean() >= min_coverage]
     r = r.dropna(how="all")
-    x = (r - r.mean()).fillna(0.0).values
-    t, n = x.shape
+    t, n = r.shape
     k = min(n_factors, n - 1, t - 1)
-    _, s, vt = np.linalg.svd(x, full_matrices=False)
-    loadings = vt[:k].T                                   # N x K
-    factor_var = s[:k] ** 2 / (t - 1)
-    resid = x - (x @ loadings) @ loadings.T
-    specific = resid.var(axis=0, ddof=1)
+    if halflife is None:
+        x = (r - r.mean()).fillna(0.0).values
+        _, s, vt = np.linalg.svd(x, full_matrices=False)
+        loadings = vt[:k].T                                   # N x K
+        factor_var = s[:k] ** 2 / (t - 1)
+        resid = x - (x @ loadings) @ loadings.T
+        specific = resid.var(axis=0, ddof=1)
+    else:
+        w = 0.5 ** (np.arange(t - 1, -1, -1) / halflife)
+        w = w / w.sum()
+        mean = (r.fillna(0.0).values * w[:, None]).sum(axis=0) / np.maximum(
+            (r.notna().values * w[:, None]).sum(axis=0), 1e-12)
+        x = (r - mean).fillna(0.0).values * np.sqrt(w)[:, None]   # rows scaled so x'x is the weighted covariance
+        _, s, vt = np.linalg.svd(x, full_matrices=False)
+        loadings = vt[:k].T
+        factor_var = s[:k] ** 2
+        resid = x - (x @ loadings) @ loadings.T
+        specific = (resid ** 2).sum(axis=0)
     specific = np.maximum(specific, 0.1 * np.median(specific))   # floor: no stock is risk-free
     return RiskModel(list(r.columns), loadings * np.sqrt(factor_var * periods_per_year),
                      specific * periods_per_year)

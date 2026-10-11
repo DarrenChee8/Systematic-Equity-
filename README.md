@@ -16,6 +16,7 @@ See [docs/METHODOLOGY.md](docs/METHODOLOGY.md) for what each stage does and how 
 | 3 | Signal combination: equal weights against walk-forward and hindsight weights | done |
 | 4 | Factor risk model and constrained optimiser; monthly holdings | done |
 | 5 | Backtest: performance against benchmark, trading costs, attribution by theme | done |
+| 5b | Risk model comparison and calibration | done |
 | 6 | IBKR paper trading | |
 
 ## Run it
@@ -31,6 +32,7 @@ python scripts/run_milestone2b.py
 python scripts/run_milestone3.py
 python scripts/run_milestone4.py
 python scripts/run_milestone5.py
+python scripts/run_risk_model_comparison.py
 ```
 
 The first run downloads about 18 years of daily prices and caches them in `data/`.
@@ -93,54 +95,67 @@ hindsight look best. With inputs this weak, estimated weights mostly fit noise.
 
 **Milestone 4: from scores to holdings, 189 monthly rebalances, 2011-2026.**
 Each month a 15-factor statistical risk model is estimated from two years of daily returns,
-and the optimiser picks the highest-scoring portfolio within the limits below.
+its forecast is calibrated against its own track record, and the optimiser picks the
+highest-scoring portfolio within the limits below.
 
 | Characteristic | Average | Range | Limit |
 |---|---|---|---|
-| Holdings | 68 | 48 to 97 | |
+| Holdings | 119 | 52 to 200 | |
 | Benchmark names | 401 | 306 to 492 | |
-| Active share | 70% | 51% to 82% | |
-| Predicted tracking error | 2.50% | 2.38% to 2.50% | 2.5% |
-| Largest stock active weight | 2.0% | | 2% |
-| Largest sector active weight | 5.7% | 3.0% to 6.0% | 6% |
-| Active beta | -0.015 | -0.030 to 0.026 | +/-0.03 |
-| One-way turnover per month | 10.1% | 10.0% to 15.7% | 10%, plus forced sales |
+| Active share | 58% | 38% to 76% | |
+| Predicted tracking error, calibrated | 2.50% | | 2.5% |
+| Risk model's own forecast | 1.73% | 1.32% to 2.50% | |
+| Largest company active weight | 1.97% | 1.49% to 2.00% | 2% |
+| Largest sector active weight | 5.4% | 2.4% to 6.0% | 6% |
+| Active beta | -0.011 | -0.030 to 0.018 | +/-0.03 |
+| One-way turnover per month | 10.1% | 9.3% to 15.7% | 10%, plus forced sales |
 
-Every rebalance solved within its limits. The risk and trading limits bind in almost every
-month: the optimiser uses all the risk and trading it is allowed. The portfolio is far more
-concentrated than the benchmark, because a long-only portfolio can underweight a small stock
-only by its small benchmark weight, so most of the risk budget goes on overweights.
+Every rebalance solved within its limits. The risk and trading limits bind in almost every month.
 
 ![Portfolio construction](reports/m4_portfolio.png)
 
-**Milestone 5: backtest of the milestone 4 holdings, February 2011 to September 2026 (188 months).**
+**Milestone 5: backtest of those holdings, February 2011 to September 2026 (188 months).**
 
 | | Gross | Net of 5bp trading costs |
 |---|---|---|
-| Portfolio return, per year | 14.5% | 14.4% |
+| Portfolio return, per year | 15.0% | 14.9% |
 | Benchmark return, per year | 14.2% | 14.2% |
-| Excess return, per year | 0.29% | 0.15% |
-| Realised tracking error | 3.7% | 3.7% |
-| Information ratio | 0.08 | 0.04 |
-| t-stat of excess return | 0.31 | 0.17 |
+| Excess return, per year | 0.80% | 0.66% |
+| Realised tracking error | 2.85% | 2.85% |
+| Information ratio | 0.28 | 0.23 |
+| t-stat of excess return | 0.98 | 0.81 |
 | Beta | 0.98 | 0.98 |
-| Share of months ahead of benchmark | 51% | 51% |
+| Share of months ahead of benchmark | 55% | 54% |
 
-The portfolio matched its benchmark: the excess return is indistinguishable from zero, as
-the signal tests predicted. Three findings matter more than the headline:
+The excess return is positive but not statistically distinguishable from zero (t below 1),
+consistent with the signal tests.
 
-- **Risk was under-predicted.** The model forecast 2.5% tracking error; 3.7% was realised.
-  Optimisers favour stocks whose risk is underestimated, and a statistical model fitted on
-  the past misses changes in how stocks co-move.
-- **Costs decide the sign.** One-way turnover is 121% a year. Excess return is 0.29% at zero
-  cost, 0.01% at 10bp per unit traded and -0.27% at 20bp.
-- **Attribution.** Momentum (+0.90% a year) and quality (+0.48%) contributed; low risk
-  (-0.35%), surprise (-0.18%) and residual sector positions (-0.39%) detracted.
-
-The constructed benchmark's calendar-year returns are close to the published S&P 500 total
-return (for example 31.96% in 2019 and -17.24% in 2022).
+- **Costs.** One-way turnover is 121% a year. Excess return is 0.80% at zero cost, 0.51% at
+  10bp per unit traded and 0.23% at 20bp.
+- **Attribution.** Momentum (+0.76% a year), quality (+0.38%) and stock-specific returns
+  (+0.29%) contributed; residual sector positions (-0.39%) and low risk (-0.30%) detracted.
+- **Benchmark check.** The constructed benchmark's calendar-year returns are close to the
+  published S&P 500 total return (for example 31.96% in 2019 and -17.24% in 2022).
 
 ![Backtest](reports/m5_backtest.png)
+
+**Milestone 5b: risk model accuracy.** Without calibration the model predicted 2.5% tracking
+error and 3.73% was realised (bias statistic 1.50). Changing the estimation window (1 to 4
+years), the number of factors (5 to 30) or adding recency weighting left the bias between 1.44
+and 1.55. Calibrating the forecast against its own trailing errors, using past months only,
+cut realised tracking error to 2.85% and the bias to 1.14.
+
+| Risk model | Realised tracking error | Bias statistic |
+|---|---|---|
+| 2 years, 15 factors | 3.73% | 1.50 |
+| 1 year / 4 years of history | 3.67% / 3.79% | 1.47 / 1.52 |
+| 5 / 30 factors | 3.87% / 3.59% | 1.55 / 1.44 |
+| Recency weighted, 6-month / 3-month half-life | 3.65% / 3.62% | 1.46 / 1.45 |
+| 2 years, 15 factors, calibrated (used) | 2.85% | 1.14 |
+
+Models were compared on risk accuracy only. The calibrated version also happened to produce
+a higher excess return (0.80% against 0.29%); that difference is well within noise and was
+not the reason for choosing it.
 
 ## Known biases in the free data
 
@@ -157,6 +172,8 @@ return (for example 31.96% in 2019 and -17.24% in 2022).
 - **Share counts**: XBRL share data has unit errors and double-counts companies with two
   share classes. Counts far from a company's own median are dropped, implausible market
   values are rescaled by 1,000, and identical counts across tickers are split.
+- **Industries**: limits apply to sectors, not industries, so a move within a sector (for
+  example semiconductors within technology) is not controlled.
 - **Benchmark**: capitalisation weights over index members that have a price, a share count
   and enough return history, which is about 60% of the index in 2011 and nearly all of it by 2026.
 

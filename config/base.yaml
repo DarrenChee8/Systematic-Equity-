@@ -17,6 +17,7 @@ portfolio:
   max_turnover: 0.10         # one-way, per monthly rebalance (about 120% a year)
   risk_window_days: 504      # two years of daily returns
   risk_factors: 15
+  calibrate_risk: true       # tighten the risk budget when the model has been under-predicting
 costs:
   rate_bps: 5                # cost per unit of value traded (commission + half spread + impact), large caps
   sensitivity_bps: [0, 5, 10, 20]

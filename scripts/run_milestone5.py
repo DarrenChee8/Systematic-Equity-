@@ -47,7 +47,8 @@ contrib = (attr.mean() * 12).rename("contribution_per_year")
 contrib["TOTAL (gross active, arithmetic)"] = attr.sum(axis=1).mean() * 12
 contrib[f"costs ({rate}bp)"] = -perf["cost"].mean() * 12
 
-predicted = diag["tracking_error"].astype(float).reindex(perf.index)
+col = "tracking_error_calibrated" if "tracking_error_calibrated" in diag else "tracking_error"
+predicted = diag[col].astype(float).reindex(perf.index)
 realised_te = perf["active"].std() * np.sqrt(12)
 rolling_te = perf["active"].rolling(12).std() * np.sqrt(12)
 
@@ -59,7 +60,9 @@ ratio_rows = ["information_ratio", "t_stat", "beta", "hit_rate"]
 show = stats.copy()
 show.loc[~show.index.isin(ratio_rows)] = show.loc[~show.index.isin(ratio_rows)] * 100
 print("\nPerformance (% a year, except ratios, t-stat, beta and hit rate)\n", show.round(2))
+bias = (perf["active"] / (predicted / np.sqrt(12))).std()
 print(f"\nTracking error: predicted {predicted.mean():.2%}, realised {realised_te:.2%}")
+print(f"Bias statistic: {bias:.2f}  (realised risk / predicted risk, month by month; 1.00 is a perfect model)")
 print(f"One-way turnover: {annual_turnover:.0%} a year")
 print(f"Largest portfolio weight in stocks with no return in a month: {perf['weight_without_return'].max():.2%}")
 print("\nNet excess return by trading cost assumption (% a year)\n",

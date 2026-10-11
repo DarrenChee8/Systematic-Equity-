@@ -30,7 +30,8 @@ limits = Limits(pc["tracking_error"], pc["max_stock_active"], pc["max_sector_act
                 pc["max_beta_active"], pc["max_turnover"])
 print("Rebalancing monthly...")
 weights, bench, diag = run(score, p.market_cap, p.daily, p.monthly, p.mask, p.sectors, p.beta, p.fwd,
-                           pc["start"], limits, pc["risk_window_days"], pc["risk_factors"], issuer=p.issuer)
+                           pc["start"], limits, pc["risk_window_days"], pc["risk_factors"], issuer=p.issuer,
+                           calibrate=pc.get("calibrate_risk", False))
 
 Path("data").mkdir(exist_ok=True)
 weights.to_parquet("data/m4_weights.parquet")
@@ -40,7 +41,8 @@ score.to_parquet("data/m4_score.parquet")
 numeric = diag.drop(columns="status").astype(float)
 summary = pd.DataFrame({"average": numeric.mean(), "minimum": numeric.min(), "maximum": numeric.max()})
 summary.loc["turnover", "average"] = numeric["turnover"].iloc[1:].mean()    # first month is the initial purchase
-limit_col = {"tracking_error": limits.tracking_error, "max_stock_active": limits.max_stock,
+summary = summary.rename(index={"tracking_error": "tracking_error_model"})
+limit_col = {"tracking_error_calibrated": limits.tracking_error, "max_stock_active": limits.max_stock,
              "max_sector_active": limits.max_sector, "active_beta": limits.max_beta,
              "turnover": limits.max_turnover}
 summary["limit"] = pd.Series(limit_col)
@@ -81,8 +83,9 @@ book.sort_values("active", ascending=False).round(5).to_csv("reports/m4_latest_h
 
 fig, ax = plt.subplots(2, 2, figsize=(14, 8))
 numeric[["holdings", "benchmark_names"]].plot(ax=ax[0, 0], title="Number of holdings")
-(numeric[["tracking_error", "active_share"]] * 100).plot(ax=ax[0, 1], secondary_y="active_share",
-                                                        title="Predicted tracking error (%, left) and active share (%, right)")
+(numeric[["tracking_error_calibrated", "active_share"]] * 100).plot(
+    ax=ax[0, 1], secondary_y="active_share",
+    title="Predicted tracking error after calibration (%, left) and active share (%, right)")
 (numeric["turnover"].iloc[1:] * 100).plot(ax=ax[1, 0], title="One-way turnover per rebalance (%)")
 ax[1, 0].axhline(limits.max_turnover * 100, color="grey", lw=0.8, ls="--")
 (by_sector["active"] * 100).plot.barh(ax=ax[1, 1], title=f"Sector active weights at {last.date()} (%)")
