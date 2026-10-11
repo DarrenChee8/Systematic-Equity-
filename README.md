@@ -4,6 +4,8 @@ A long-only, benchmark-relative, multi-factor US equity model, built stage by st
 data -> signals -> model -> risk -> portfolio -> backtest -> paper trading.
 The design follows the process published by large systematic managers.
 
+See [docs/METHODOLOGY.md](docs/METHODOLOGY.md) for what each stage does and how to read its output.
+
 ## Status
 
 | Milestone | Content | State |
@@ -11,7 +13,7 @@ The design follows the process published by large systematic managers.
 | 1 | Data loader, point-in-time S&P 500 universe, 12-1 momentum, IC and quintile tests | done |
 | 2 | Value, quality, low-risk signals from SEC EDGAR fundamentals; sector-neutral scores; signal correlations | done |
 | 2b | Trailing-twelve-month fundamentals, sales yield, gross profitability, earnings and revenue surprise | done |
-| 3 | Signal combination, walk-forward weights | next |
+| 3 | Signal combination: equal weights against walk-forward and hindsight weights | done |
 | 4 | Risk model and constrained optimiser | |
 | 5 | Backtest with costs and attribution | |
 | 6 | IBKR paper trading | |
@@ -26,6 +28,7 @@ pytest
 python scripts/run_milestone1.py
 python scripts/run_milestone2.py
 python scripts/run_milestone2b.py
+python scripts/run_milestone3.py
 ```
 
 The first run downloads about 18 years of daily prices and caches them in `data/`.
@@ -68,6 +71,23 @@ with Asness, Moskowitz and Pedersen (2013).
 
 **Milestone 2b** repeats the test with trailing-twelve-month fundamentals and adds an
 earnings-surprise theme; results are in `reports/m2b_signal_summary.csv`.
+
+**Milestone 3: combining the five themes, test period 2013-2026 (164 months), neutral returns.**
+
+| Weighting | Mean IC | t-stat |
+|---|---|---|
+| Equal | 0.009 | 0.79 |
+| Past IC | 0.010 | 0.63 |
+| Past IC consistency | 0.008 | 0.58 |
+| Mean-variance, all history | 0.006 | 0.48 |
+| Mean-variance, last 5 years | 0.002 | 0.18 |
+| Hindsight (full-sample fit, not achievable) | 0.012 | 1.05 |
+
+Data-driven weights, estimated from past data only, do not beat equal weights, and the more a
+scheme adapts (shorter window, more parameters) the worse it does. Weights fitted with
+hindsight look best. With inputs this weak, estimated weights mostly fit noise.
+
+![Combination diagnostics](reports/m3_combination.png)
 
 ## Known biases in the free data
 
