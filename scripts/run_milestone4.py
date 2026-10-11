@@ -30,7 +30,7 @@ limits = Limits(pc["tracking_error"], pc["max_stock_active"], pc["max_sector_act
                 pc["max_beta_active"], pc["max_turnover"])
 print("Rebalancing monthly...")
 weights, bench, diag = run(score, p.market_cap, p.daily, p.monthly, p.mask, p.sectors, p.beta, p.fwd,
-                           pc["start"], limits, pc["risk_window_days"], pc["risk_factors"])
+                           pc["start"], limits, pc["risk_window_days"], pc["risk_factors"], issuer=p.issuer)
 
 Path("data").mkdir(exist_ok=True)
 weights.to_parquet("data/m4_weights.parquet")
@@ -48,6 +48,7 @@ summary["limit"] = pd.Series(limit_col)
 last = weights.index[-1]
 w, b = weights.loc[last], bench.loc[last]
 held = b.index[b > 0].union(w.index[w > 0])
+diag.to_parquet("data/m4_diagnostics.parquet")
 sector = p.sectors.reindex(held).fillna("Unknown")
 book = pd.DataFrame({"sector": sector, "portfolio": w[held], "benchmark": b[held]})
 book["active"] = book["portfolio"] - book["benchmark"]

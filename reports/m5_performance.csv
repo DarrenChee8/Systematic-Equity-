@@ -1,0 +1,14 @@
+,gross,net (5bp)
+return,0.14512,0.14372
+benchmark_return,0.14222,0.14222
+excess_return,0.0029,0.0015
+tracking_error,0.03735,0.03734
+information_ratio,0.07771,0.04021
+t_stat,0.30641,0.17527
+volatility,0.1418,0.14179
+benchmark_volatility,0.13963,0.13963
+beta,0.97987,0.97984
+hit_rate,0.51064,0.51064
+max_drawdown,-0.21917,-0.21943
+benchmark_max_drawdown,-0.23055,-0.23055
+worst_relative_drawdown,-0.15519,-0.16676

@@ -83,3 +83,17 @@ def test_benchmark_and_drift():
     assert list(b.index) == ["A", "B"] and np.isclose(b["A"], 0.75)
     d = drift(pd.Series({"A": 0.5, "B": 0.5}), pd.Series({"A": 1.0}))   # A doubles, B has no return
     assert np.isclose(d["A"], 2 / 3)
+
+
+def test_issuer_limit_covers_share_classes_together():
+    rm, bench, score, sectors, beta = _setup()
+    score = score.copy()
+    score[["S00", "S01"]] = 10.0                                # two classes of one very attractive company
+    issuer = pd.Series(TICKERS, index=TICKERS)
+    issuer["S01"] = "S00"
+    lim = Limits(tracking_error=0.05, max_stock=0.02, max_sector=0.2, max_beta=None, max_turnover=None)
+    apart = optimise(score, bench, rm, sectors, lim, beta)
+    together = optimise(score, bench, rm, sectors, lim, beta, issuer=issuer)
+    extra = lambda w: (w - bench)[["S00", "S01"]].sum()
+    assert extra(apart.weights) > 0.03 and extra(together.weights) <= 0.02 + 1e-5
+    assert diagnostics(together.weights, bench, rm, sectors, issuer=issuer)["max_stock_active"] <= 0.02 + 1e-5

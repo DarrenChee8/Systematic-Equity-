@@ -110,7 +110,7 @@ approximating the S&P 500's own weighting.
 | Limit | Value | Purpose |
 |---|---|---|
 | Fully invested, no shorts | | A long-only fund |
-| Stock active weight | +/-2% | No single stock dominates |
+| Company active weight | +/-2% | No single company dominates (share classes count together) |
 | Sector active weight | +/-6% | Returns come from stock selection, not sector bets |
 | Predicted tracking error | 2.5% a year | Caps the total size of the bets |
 | Active beta | +/-0.03 | Not a disguised bet on the market's direction |
@@ -127,7 +127,36 @@ sum of absolute active weights: 0% is the index itself, 100% shares nothing with
 index members weigh under 0.2%, so underweighting them frees little. The optimiser therefore
 holds a concentrated set of overweights and drops most small names entirely.
 
-## 8. Known limitations
+## 8. Backtest
+
+**What.** The holdings chosen each month are held for the following month and their return is
+compared with the benchmark's. No holding is chosen with knowledge of that month's returns.
+
+**Trading costs.** At each rebalance the value traded is the difference between the new target
+and the old holdings after a month of price drift. A fixed rate per unit traded is charged
+(5 basis points by default, with 0 to 20 shown). This is a simple stand-in for commission,
+bid-ask spread and market impact; a real fund's impact costs grow with its size.
+
+**Reading the output.**
+
+| Measure | Meaning |
+|---|---|
+| Excess return | Portfolio return minus benchmark return, per year |
+| Tracking error | Volatility of monthly excess returns, annualised |
+| Information ratio | Excess return / tracking error: skill per unit of active risk. 0.5 is good, 1.0 exceptional |
+| t-stat | Whether the excess return is distinguishable from luck (about 2 or more) |
+| Beta | Sensitivity to the benchmark; close to 1 by design |
+| Worst relative drawdown | Largest peak-to-trough loss against the benchmark |
+
+**Predicted and realised risk.** If the risk model is right, realised tracking error should be
+close to the 2.5% target. A realised figure well above it means the model underestimates risk.
+
+**Attribution.** Each month, stock returns are regressed on sector, beta and the five theme
+scores. Each theme's contribution is the portfolio's active exposure to it multiplied by that
+theme's payoff. What remains is attributed to beta, to sector positions and to stock-specific
+returns. The pieces add up exactly to the active return.
+
+## 9. Known limitations
 
 - **Survivorship.** Free prices and filings omit most companies that were delisted. About 4%
   of index-member months are missing, more in the early years.
@@ -139,6 +168,9 @@ holds a concentrated set of overweights and drops most small names entirely.
   These are repaired by rule (median filter, rescaling by 1,000, splitting identical counts), which
   is a heuristic, not a verified correction.
 - **Risk model.** A statistical model has no named factors and ignores changes in a company's
-  business. Its tracking-error forecast is checked against the realised figure in milestone 5.
+  business. Realised tracking error was 3.7% against 2.5% predicted.
+- **Costs.** A flat rate ignores market impact and differences in liquidity between stocks.
+- **Benchmark.** Built from market values, not the official index weights, and missing index
+  members without share data in the early years.
 - **Multiple testing.** Many signals and schemes are tried. One of twenty crossing a t-stat of
   2 by chance is expected.

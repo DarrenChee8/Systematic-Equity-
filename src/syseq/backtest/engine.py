@@ -26,7 +26,7 @@ def drift(weights: pd.Series, returns: pd.Series) -> pd.Series:
 def run(scores: pd.DataFrame, market_cap: pd.DataFrame, daily: pd.DataFrame, monthly: pd.DataFrame,
         mask: pd.DataFrame, sectors: pd.Series, beta: pd.DataFrame, fwd: pd.DataFrame,
         start: str, limits: Limits = Limits(), risk_window: int = 504, n_factors: int = 15,
-        verbose: bool = True):
+        verbose: bool = True, issuer: pd.Series | None = None):
     """Returns (portfolio weights, benchmark weights, diagnostics), each indexed by rebalance date."""
     daily_ret = daily.pct_change(fill_method=None)
     dates = [d for d in scores.loc[start:].index if d <= daily.index[-1]]
@@ -40,9 +40,9 @@ def run(scores: pd.DataFrame, market_cap: pd.DataFrame, daily: pd.DataFrame, mon
         b = benchmark_weights(market_cap.loc[d], eligible)
         if len(b) < 50:
             continue
-        res = optimise(scores.loc[d], b, risk, sectors, limits, beta.loc[d], previous)
+        res = optimise(scores.loc[d], b, risk, sectors, limits, beta.loc[d], previous, issuer)
         weights[d], bench[d] = res.weights, b
-        diag[d] = {**diagnostics(res.weights, b, risk, sectors, beta.loc[d], previous), "status": res.status}
+        diag[d] = {**diagnostics(res.weights, b, risk, sectors, beta.loc[d], previous, issuer), "status": res.status}
         previous = drift(res.weights, fwd.loc[d]) if d in fwd.index else res.weights
         if verbose and (i % 24 == 0 or i == len(dates) - 1):
             print(f"  rebalanced {d.date()}  holdings {diag[d]['holdings']}  "

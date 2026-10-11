@@ -1,9 +1,9 @@
 ,average,minimum,maximum,limit
-holdings,68.46032,48.0,97.0,
+holdings,68.50794,48.0,97.0,
 benchmark_names,400.60317,306.0,492.0,
-active_share,0.70222,0.51444,0.81616,
+active_share,0.70225,0.517,0.81616,
 tracking_error,0.02498,0.02378,0.025,0.025
 max_stock_active,0.02,0.02,0.02,0.02
-max_sector_active,0.05694,0.02956,0.06,0.06
-active_beta,-0.01486,-0.03,0.02559,0.03
-turnover,0.10102,0.1,0.15681,0.1
+max_sector_active,0.05694,0.02917,0.06,0.06
+active_beta,-0.01479,-0.03,0.02559,0.03
+turnover,0.10103,0.1,0.15681,0.1

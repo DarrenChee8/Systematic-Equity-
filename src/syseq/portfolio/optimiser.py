@@ -36,8 +36,11 @@ class Result:
 
 def optimise(score: pd.Series, benchmark: pd.Series, risk: RiskModel, sectors: pd.Series,
              limits: Limits = Limits(), beta: pd.Series | None = None,
-             previous: pd.Series | None = None) -> Result:
-    """All inputs are indexed by ticker; `benchmark` defines the investable set and sums to 1."""
+             previous: pd.Series | None = None, issuer: pd.Series | None = None) -> Result:
+    """All inputs are indexed by ticker; `benchmark` defines the investable set and sums to 1.
+
+    issuer maps ticker -> company, so the stock limit applies to a company's share classes together.
+    """
     tickers = list(benchmark.index)
     n = len(tickers)
     b = benchmark.values
@@ -56,6 +59,12 @@ def optimise(score: pd.Series, benchmark: pd.Series, risk: RiskModel, sectors: p
         cp.sum_squares(rm.exposures.T @ active)
         + cp.sum_squares(cp.multiply(np.sqrt(rm.specific_var), active)) <= limits.tracking_error ** 2,
     ]
+    if issuer is not None:
+        company = issuer.reindex(tickers).fillna(pd.Series(tickers, index=tickers))
+        multi = company[company.duplicated(keep=False)]
+        for name in multi.unique():
+            rows = [tickers.index(t) for t in multi.index[multi == name]]
+            constraints.append(cp.abs(cp.sum(active[rows])) <= limits.max_stock)
     if beta is not None and limits.max_beta is not None:
         constraints.append(cp.abs(beta.reindex(tickers).fillna(1.0).values @ active) <= limits.max_beta)
 
@@ -85,7 +94,8 @@ def optimise(score: pd.Series, benchmark: pd.Series, risk: RiskModel, sectors: p
 
 
 def diagnostics(weights: pd.Series, benchmark: pd.Series, risk: RiskModel, sectors: pd.Series,
-                beta: pd.Series | None = None, previous: pd.Series | None = None) -> dict:
+                beta: pd.Series | None = None, previous: pd.Series | None = None,
+                issuer: pd.Series | None = None) -> dict:
     tickers = list(benchmark.index)
     w, b = weights.reindex(tickers).fillna(0.0), benchmark
     a = w - b
@@ -96,7 +106,8 @@ def diagnostics(weights: pd.Series, benchmark: pd.Series, risk: RiskModel, secto
         "benchmark_names": len(tickers),
         "active_share": float(a.abs().sum() / 2),
         "tracking_error": rm.volatility(a.values),
-        "max_stock_active": float(a.abs().max()),
+        "max_stock_active": float(a.abs().max()) if issuer is None else float(
+            a.groupby(issuer.reindex(tickers).fillna(pd.Series(tickers, index=tickers))).sum().abs().max()),
         "max_sector_active": float(a.groupby(groups).sum().abs().max()),
     }
     if beta is not None:

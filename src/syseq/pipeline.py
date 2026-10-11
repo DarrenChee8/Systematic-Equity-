@@ -59,6 +59,13 @@ def build(config_path: str = "config/base.yaml", data_dir: str = "data", verbose
     shares = asof_panel(share_facts, TAGS["shares"], dates, "any", max_age_days=400).reindex(columns=cols)
     market_cap = market_cap_panel(shares, close.resample("ME").last().reindex(index=dates, columns=cols))
 
+    # Tickers that carry an identical share count are share classes of one company.
+    latest = shares.ffill().iloc[-1].dropna()
+    issuer = pd.Series(latest.index, index=latest.index)
+    for _, group in latest.groupby(latest):
+        if len(group) > 1:
+            issuer[group.index] = sorted(group.index)[0]
+
     # ---- characteristics -> sector-neutral signals --------------------------
     raw = {}
     raw.update(value_characteristics(net_income, equity, cfo, market_cap, revenue))
@@ -87,6 +94,6 @@ def build(config_path: str = "config/base.yaml", data_dir: str = "data", verbose
     return SimpleNamespace(
         cfg=cfg, start=start, members=members, daily=daily, monthly=monthly, universe=universe,
         sectors=sectors, mask=mask, raw=raw, z=z, themes=themes, fwd=fwd, fwd_neutral=fwd_neutral,
-        beta=beta, market_cap=market_cap,
+        beta=beta, market_cap=market_cap, issuer=issuer,
         fundamentals=dict(net_income=net_income, cfo=cfo, revenue=revenue, gross_profit=gross_profit,
                           equity=equity, assets=assets))

@@ -15,7 +15,7 @@ See [docs/METHODOLOGY.md](docs/METHODOLOGY.md) for what each stage does and how 
 | 2b | Trailing-twelve-month fundamentals, sales yield, gross profitability, earnings and revenue surprise | done |
 | 3 | Signal combination: equal weights against walk-forward and hindsight weights | done |
 | 4 | Factor risk model and constrained optimiser; monthly holdings | done |
-| 5 | Backtest with costs and attribution | |
+| 5 | Backtest: performance against benchmark, trading costs, attribution by theme | done |
 | 6 | IBKR paper trading | |
 
 ## Run it
@@ -30,6 +30,7 @@ python scripts/run_milestone2.py
 python scripts/run_milestone2b.py
 python scripts/run_milestone3.py
 python scripts/run_milestone4.py
+python scripts/run_milestone5.py
 ```
 
 The first run downloads about 18 years of daily prices and caches them in `data/`.
@@ -111,6 +112,35 @@ concentrated than the benchmark, because a long-only portfolio can underweight a
 only by its small benchmark weight, so most of the risk budget goes on overweights.
 
 ![Portfolio construction](reports/m4_portfolio.png)
+
+**Milestone 5: backtest of the milestone 4 holdings, February 2011 to September 2026 (188 months).**
+
+| | Gross | Net of 5bp trading costs |
+|---|---|---|
+| Portfolio return, per year | 14.5% | 14.4% |
+| Benchmark return, per year | 14.2% | 14.2% |
+| Excess return, per year | 0.29% | 0.15% |
+| Realised tracking error | 3.7% | 3.7% |
+| Information ratio | 0.08 | 0.04 |
+| t-stat of excess return | 0.31 | 0.17 |
+| Beta | 0.98 | 0.98 |
+| Share of months ahead of benchmark | 51% | 51% |
+
+The portfolio matched its benchmark: the excess return is indistinguishable from zero, as
+the signal tests predicted. Three findings matter more than the headline:
+
+- **Risk was under-predicted.** The model forecast 2.5% tracking error; 3.7% was realised.
+  Optimisers favour stocks whose risk is underestimated, and a statistical model fitted on
+  the past misses changes in how stocks co-move.
+- **Costs decide the sign.** One-way turnover is 121% a year. Excess return is 0.29% at zero
+  cost, 0.01% at 10bp per unit traded and -0.27% at 20bp.
+- **Attribution.** Momentum (+0.90% a year) and quality (+0.48%) contributed; low risk
+  (-0.35%), surprise (-0.18%) and residual sector positions (-0.39%) detracted.
+
+The constructed benchmark's calendar-year returns are close to the published S&P 500 total
+return (for example 31.96% in 2019 and -17.24% in 2022).
+
+![Backtest](reports/m5_backtest.png)
 
 ## Known biases in the free data
 
